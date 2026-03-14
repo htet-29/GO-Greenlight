@@ -23,9 +23,12 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
+// envelope is a type for enveloping json response
+type envelope map[string]any
+
 // writeJSON is a helper for sending responses.
-func (app *application) writeJSON(w http.ResponseWriter, status int, data any, headers http.Header) error {
-	js, err := json.Marshal(data)
+func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		return err
 	}
