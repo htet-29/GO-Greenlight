@@ -28,7 +28,7 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 	}
 }
 
-// The serverErrorResponse method will be used when our application encounters
+// The serverErrorResponse method is used when our application encounters
 // an unexpected problem at runtime.
 func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.logError(r, err)
@@ -37,16 +37,22 @@ func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Reque
 	app.errorResponse(w, r, http.StatusNotFound, message)
 }
 
-// The notFoundResponse method will be used to send a 404 Not Found status code and
+// The notFoundResponse method is used to send a 404 Not Found status code and
 // JSON response to the client.
 func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	message := "the requested resource could not be found"
 	app.errorResponse(w, r, http.StatusNotFound, message)
 }
 
-// The methodNotAllowedResponse method will be used to send a 405 Method Not Allowed
+// The methodNotAllowedResponse method is used to send a 405 Method Not Allowed
 // status code and JSON response to the client
 func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("the %s method is not supported for this resource", r.Method)
 	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
+}
+
+// the badRequestResponse method is used to send a 400 Bad Request status code
+// and JSON response to the client
+func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
+	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
 }
