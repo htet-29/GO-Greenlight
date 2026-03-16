@@ -88,14 +88,59 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func toDomainMovie(dbMovie data.Movie) domain.Movie {
-	return domain.Movie{
-		ID:        dbMovie.ID,
-		Title:     dbMovie.Title,
-		Year:      dbMovie.Year,
-		Runtime:   custom.Runtime(dbMovie.Runtime),
-		Genres:    dbMovie.Genres,
-		Version:   dbMovie.Version,
-		CreatedAt: dbMovie.CreatedAt.Time,
+func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	var input struct {
+		Title   string         `json:"title"`
+		Year    int32          `json:"year"`
+		Runtime custom.Runtime `json:"runtime"`
+		Genres  []string       `json:"genres"`
+	}
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	movie := &domain.Movie{
+		Title:   input.Title,
+		Year:    input.Year,
+		Runtime: input.Runtime,
+		Genres:  input.Genres,
+	}
+
+	v := validator.New()
+
+	if domain.ValidateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	updatedMovie, err := app.db.UpdateMovie(context.Background(), data.UpdateMovieParams{
+		Title:   movie.Title,
+		Year:    movie.Year,
+		Runtime: int32(movie.Runtime),
+		Genres:  movie.Genres,
+		ID:      id,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"movie": toDomainMovie(updatedMovie)}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
 	}
 }

@@ -9,6 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/htet-29/greenlight/internal/custom"
+	"github.com/htet-29/greenlight/internal/data"
+	"github.com/htet-29/greenlight/internal/domain"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -111,4 +114,16 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	}
 
 	return nil
+}
+
+func toDomainMovie(dbMovie data.Movie) domain.Movie {
+	return domain.Movie{
+		ID:        dbMovie.ID,
+		Title:     dbMovie.Title,
+		Year:      dbMovie.Year,
+		Runtime:   custom.Runtime(dbMovie.Runtime),
+		Genres:    dbMovie.Genres,
+		Version:   dbMovie.Version,
+		CreatedAt: dbMovie.CreatedAt.Time,
+	}
 }
