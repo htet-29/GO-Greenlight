@@ -95,11 +95,22 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	dbMovie, err := app.db.GetMovie(context.Background(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
 	var input struct {
-		Title   string         `json:"title"`
-		Year    int32          `json:"year"`
-		Runtime custom.Runtime `json:"runtime"`
-		Genres  []string       `json:"genres"`
+		Title   *string         `json:"title"`
+		Year    *int32          `json:"year"`
+		Runtime *custom.Runtime `json:"runtime"`
+		Genres  []string        `json:"genres"`
 	}
 
 	err = app.readJSON(w, r, &input)
@@ -108,16 +119,27 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	movie := &domain.Movie{
-		Title:   input.Title,
-		Year:    input.Year,
-		Runtime: input.Runtime,
-		Genres:  input.Genres,
+	if input.Title != nil {
+		dbMovie.Title = *input.Title
+	}
+
+	if input.Year != nil {
+		dbMovie.Year = *input.Year
+	}
+
+	if input.Runtime != nil {
+		dbMovie.Runtime = int32(*input.Runtime)
+	}
+
+	if input.Genres != nil {
+		dbMovie.Genres = input.Genres
 	}
 
 	v := validator.New()
 
-	if domain.ValidateMovie(v, movie); !v.Valid() {
+	movie := toDomainMovie(dbMovie)
+
+	if domain.ValidateMovie(v, &movie); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -130,12 +152,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		ID:      id,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			app.notFoundResponse(w, r)
-		default:
-			app.serverErrorResponse(w, r, err)
-		}
+		app.serverErrorResponse(w, r, err)
 		return
 	}
 
