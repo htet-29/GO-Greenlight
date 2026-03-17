@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/htet-29/greenlight/internal/custom"
 	"github.com/htet-29/greenlight/internal/data"
@@ -41,13 +42,20 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	dbMovie, err := app.db.CreateMovie(context.Background(), data.CreateMovieParams{
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	dbMovie, err := app.db.CreateMovie(ctx, data.CreateMovieParams{
 		Title:   movie.Title,
 		Year:    movie.Year,
 		Runtime: int32(movie.Runtime),
 		Genres:  movie.Genres,
 	})
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			app.serverErrorResponse(w, r, errors.New("database operation time out"))
+			return
+		}
 		app.serverErrorResponse(w, r, err)
 		return
 	}
@@ -71,7 +79,10 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	movie, err := app.db.GetMovie(context.Background(), id)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	movie, err := app.db.GetMovie(ctx, id)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -95,7 +106,10 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	dbMovie, err := app.db.GetMovie(context.Background(), id)
+	getCTX, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	dbMovie, err := app.db.GetMovie(getCTX, id)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -144,14 +158,22 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	updatedMovie, err := app.db.UpdateMovie(context.Background(), data.UpdateMovieParams{
+	updateCTX, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	updatedMovie, err := app.db.UpdateMovie(updateCTX, data.UpdateMovieParams{
 		Title:   movie.Title,
 		Year:    movie.Year,
 		Runtime: int32(movie.Runtime),
 		Genres:  movie.Genres,
 		ID:      id,
+		Version: movie.Version,
 	})
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			app.editConflictResponse(w, r)
+			return
+		}
 		app.serverErrorResponse(w, r, err)
 		return
 	}
@@ -169,7 +191,10 @@ func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.db.DeleteMovie(context.Background(), id)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	err = app.db.DeleteMovie(ctx, id)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
