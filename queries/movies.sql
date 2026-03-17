@@ -4,7 +4,7 @@ VALUES ($1, $2, $3, $4)
 RETURNING id, created_at, version;
 
 -- name: GetMovie :one
-SELECT * FROM movies
+SELECT  * FROM movies
 WHERE id = $1;
 
 -- name: UpdateMovie :one

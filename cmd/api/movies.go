@@ -42,7 +42,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
 	dbMovie, err := app.db.CreateMovie(ctx, data.CreateMovieParams{
@@ -79,7 +79,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
 	movie, err := app.db.GetMovie(ctx, id)
@@ -87,6 +87,8 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			app.notFoundResponse(w, r)
+		case errors.Is(err, context.DeadlineExceeded):
+			app.serverErrorResponse(w, r, errors.New("database operation time out"))
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
@@ -106,7 +108,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	getCTX, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	getCTX, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
 	dbMovie, err := app.db.GetMovie(getCTX, id)
@@ -114,6 +116,8 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			app.notFoundResponse(w, r)
+		case errors.Is(err, context.DeadlineExceeded):
+			app.serverErrorResponse(w, r, errors.New("database operation time out"))
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
@@ -158,7 +162,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	updateCTX, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	updateCTX, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
 	updatedMovie, err := app.db.UpdateMovie(updateCTX, data.UpdateMovieParams{
@@ -170,11 +174,14 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		Version: movie.Version,
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
 			app.editConflictResponse(w, r)
-			return
+		case errors.Is(err, context.DeadlineExceeded):
+			app.serverErrorResponse(w, r, errors.New("database operation time out"))
+		default:
+			app.serverErrorResponse(w, r, err)
 		}
-		app.serverErrorResponse(w, r, err)
 		return
 	}
 
@@ -191,7 +198,7 @@ func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
 	err = app.db.DeleteMovie(ctx, id)
@@ -199,6 +206,8 @@ func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Reques
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			app.notFoundResponse(w, r)
+		case errors.Is(err, context.DeadlineExceeded):
+			app.serverErrorResponse(w, r, errors.New("database operation time out"))
 		default:
 			app.serverErrorResponse(w, r, err)
 		}

@@ -53,7 +53,7 @@ func (q *Queries) DeleteMovie(ctx context.Context, id int64) error {
 }
 
 const getMovie = `-- name: GetMovie :one
-SELECT id, created_at, title, year, runtime, genres, version FROM movies
+SELECT  id, created_at, title, year, runtime, genres, version FROM movies
 WHERE id = $1
 `
 
