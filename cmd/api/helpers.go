@@ -118,6 +118,14 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	return nil
 }
 
+func MapSlice[T any, V any](items []T, mapFunc func(T) V) []V {
+	result := make([]V, len(items))
+	for i, item := range items {
+		result[i] = mapFunc(item)
+	}
+	return result
+}
+
 // toDomainMovie is a helper to convert database model to
 // domain(business) model.
 func toDomainMovie(dbMovie data.Movie) domain.Movie {
