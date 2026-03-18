@@ -74,11 +74,18 @@ func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 
 const listMovies = `-- name: ListMovies :many
 SELECT id, created_at, title, year, runtime, genres, version FROM movies
+WHERE (LOWER(title) = LOWER($1) OR $1 = '')
+AND (genres @> $2 OR $2 = '{}'::text[])
 ORDER BY id
 `
 
-func (q *Queries) ListMovies(ctx context.Context) ([]Movie, error) {
-	rows, err := q.db.Query(ctx, listMovies)
+type ListMoviesParams struct {
+	FilterTitle  string
+	FilterGenres []string
+}
+
+func (q *Queries) ListMovies(ctx context.Context, arg ListMoviesParams) ([]Movie, error) {
+	rows, err := q.db.Query(ctx, listMovies, arg.FilterTitle, arg.FilterGenres)
 	if err != nil {
 		return nil, err
 	}

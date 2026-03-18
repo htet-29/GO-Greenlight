@@ -248,7 +248,10 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	dbMovies, err := app.db.ListMovies(ctx)
+	dbMovies, err := app.db.ListMovies(ctx, data.ListMoviesParams{
+		FilterTitle:  input.Title,
+		FilterGenres: input.Genres,
+	})
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
