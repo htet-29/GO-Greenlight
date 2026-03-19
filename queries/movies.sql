@@ -22,7 +22,8 @@ ORDER BY
   CASE WHEN @sort_col = 'runtime' AND @sort_dir = 'ASC' THEN runtime END ASC,
   CASE WHEN @sort_col = 'runtime' AND @sort_dir = 'DESC' THEN runtime END DESC,
   
-  id ASC;
+  id ASC
+LIMIT @page OFFSET @page_size;
 
 -- name: UpdateMovie :one
 UPDATE movies

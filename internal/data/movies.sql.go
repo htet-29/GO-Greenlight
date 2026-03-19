@@ -88,6 +88,7 @@ ORDER BY
   CASE WHEN $3 = 'runtime' AND $4 = 'DESC' THEN runtime END DESC,
   
   id ASC
+LIMIT $6 OFFSET $5
 `
 
 type ListMoviesParams struct {
@@ -95,6 +96,8 @@ type ListMoviesParams struct {
 	FilterGenres []string
 	SortCol      interface{}
 	SortDir      interface{}
+	PageSize     int32
+	Page         int32
 }
 
 func (q *Queries) ListMovies(ctx context.Context, arg ListMoviesParams) ([]Movie, error) {
@@ -103,6 +106,8 @@ func (q *Queries) ListMovies(ctx context.Context, arg ListMoviesParams) ([]Movie
 		arg.FilterGenres,
 		arg.SortCol,
 		arg.SortDir,
+		arg.PageSize,
+		arg.Page,
 	)
 	if err != nil {
 		return nil, err

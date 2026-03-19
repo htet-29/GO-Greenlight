@@ -253,6 +253,8 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 		FilterGenres: input.Genres,
 		SortCol:      input.Filters.SortColumn(),
 		SortDir:      input.Filters.SortDirection(),
+		Page:         int32(input.Filters.Limit()),
+		PageSize:     int32(input.Filters.Offset()),
 	})
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
