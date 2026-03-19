@@ -73,7 +73,7 @@ func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 }
 
 const listMovies = `-- name: ListMovies :many
-SELECT id, created_at, title, year, runtime, genres, version FROM movies
+SELECT count(*) OVER(), id, created_at, title, year, runtime, genres, version FROM movies
 WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) 
 OR $1 = '')
 AND (genres @> $2 OR $2 = '{}'::text[])
@@ -100,7 +100,18 @@ type ListMoviesParams struct {
 	Page         int32
 }
 
-func (q *Queries) ListMovies(ctx context.Context, arg ListMoviesParams) ([]Movie, error) {
+type ListMoviesRow struct {
+	Count     int64
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+	Title     string
+	Year      int32
+	Runtime   int32
+	Genres    []string
+	Version   int32
+}
+
+func (q *Queries) ListMovies(ctx context.Context, arg ListMoviesParams) ([]ListMoviesRow, error) {
 	rows, err := q.db.Query(ctx, listMovies,
 		arg.FilterTitle,
 		arg.FilterGenres,
@@ -113,10 +124,11 @@ func (q *Queries) ListMovies(ctx context.Context, arg ListMoviesParams) ([]Movie
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Movie
+	var items []ListMoviesRow
 	for rows.Next() {
-		var i Movie
+		var i ListMoviesRow
 		if err := rows.Scan(
+			&i.Count,
 			&i.ID,
 			&i.CreatedAt,
 			&i.Title,

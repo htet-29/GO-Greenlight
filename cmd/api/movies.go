@@ -248,7 +248,7 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	dbMovies, err := app.db.ListMovies(ctx, data.ListMoviesParams{
+	moviesList, err := app.db.ListMovies(ctx, data.ListMoviesParams{
 		FilterTitle:  input.Title,
 		FilterGenres: input.Genres,
 		SortCol:      input.Filters.SortColumn(),
@@ -261,9 +261,26 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	movies := MapSlice(dbMovies, toDomainMovie)
+	movies := []domain.Movie{}
+	var metadata custom.Metadata
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies}, nil)
+	totalRecords := 0
+	for _, movie := range moviesList {
+		movies = append(movies, domain.Movie{
+			ID:        movie.ID,
+			Title:     movie.Title,
+			Year:      movie.Year,
+			Runtime:   custom.Runtime(movie.Runtime),
+			Genres:    movie.Genres,
+			Version:   movie.Version,
+			CreatedAt: movie.CreatedAt.Time,
+		})
+		totalRecords = int(movie.Count)
+	}
+
+	metadata = custom.CalculateMetadata(totalRecords, input.Filters.Page, input.Filters.PageSize)
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies, "metadata": metadata}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

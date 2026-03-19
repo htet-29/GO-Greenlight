@@ -8,7 +8,7 @@ SELECT  * FROM movies
 WHERE id = $1;
 
 -- name: ListMovies :many
-SELECT * FROM movies
+SELECT count(*) OVER(), * FROM movies
 WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', @filter_title) 
 OR @filter_title = '')
 AND (genres @> @filter_genres OR @filter_genres = '{}'::text[])
