@@ -9,9 +9,20 @@ WHERE id = $1;
 
 -- name: ListMovies :many
 SELECT * FROM movies
-WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', @filter_title) OR @filter_title = '')
+WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', @filter_title) 
+OR @filter_title = '')
 AND (genres @> @filter_genres OR @filter_genres = '{}'::text[])
-ORDER BY id;
+ORDER BY
+  CASE WHEN @sort_col = 'title' AND @sort_dir = 'ASC' THEN title END ASC,
+  CASE WHEN @sort_col = 'title' AND @sort_dir = 'DESC' THEN title END DESC,
+
+  CASE WHEN @sort_col = 'year' AND @sort_dir = 'ASC' THEN year END ASC,
+  CASE WHEN @sort_col = 'year' AND @sort_dir = 'DESC' THEN year END DESC,
+
+  CASE WHEN @sort_col = 'runtime' AND @sort_dir = 'ASC' THEN runtime END ASC,
+  CASE WHEN @sort_col = 'runtime' AND @sort_dir = 'DESC' THEN runtime END DESC,
+  
+  id ASC;
 
 -- name: UpdateMovie :one
 UPDATE movies

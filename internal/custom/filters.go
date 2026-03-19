@@ -1,12 +1,33 @@
 package custom
 
-import "github.com/htet-29/greenlight/internal/validator"
+import (
+	"slices"
+	"strings"
+
+	"github.com/htet-29/greenlight/internal/validator"
+)
 
 type Filters struct {
 	Page         int
 	PageSize     int
 	Sort         string
 	SortSafelist []string
+}
+
+func (f Filters) SortColumn() string {
+	if slices.Contains(f.SortSafelist, f.Sort) {
+		return strings.TrimPrefix(f.Sort, "-")
+	}
+
+	panic("unsafe sort parameter: " + f.Sort)
+}
+
+func (f Filters) SortDirection() string {
+	if strings.HasPrefix(f.Sort, "-") {
+		return "DESC"
+	}
+
+	return "ASC"
 }
 
 func ValidateFilters(v *validator.Validator, f Filters) {

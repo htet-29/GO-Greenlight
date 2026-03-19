@@ -74,18 +74,36 @@ func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 
 const listMovies = `-- name: ListMovies :many
 SELECT id, created_at, title, year, runtime, genres, version FROM movies
-WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
+WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) 
+OR $1 = '')
 AND (genres @> $2 OR $2 = '{}'::text[])
-ORDER BY id
+ORDER BY
+  CASE WHEN $3 = 'title' AND $4 = 'ASC' THEN title END ASC,
+  CASE WHEN $3 = 'title' AND $4 = 'DESC' THEN title END DESC,
+
+  CASE WHEN $3 = 'year' AND $4 = 'ASC' THEN year END ASC,
+  CASE WHEN $3 = 'year' AND $4 = 'DESC' THEN year END DESC,
+
+  CASE WHEN $3 = 'runtime' AND $4 = 'ASC' THEN runtime END ASC,
+  CASE WHEN $3 = 'runtime' AND $4 = 'DESC' THEN runtime END DESC,
+  
+  id ASC
 `
 
 type ListMoviesParams struct {
 	FilterTitle  string
 	FilterGenres []string
+	SortCol      interface{}
+	SortDir      interface{}
 }
 
 func (q *Queries) ListMovies(ctx context.Context, arg ListMoviesParams) ([]Movie, error) {
-	rows, err := q.db.Query(ctx, listMovies, arg.FilterTitle, arg.FilterGenres)
+	rows, err := q.db.Query(ctx, listMovies,
+		arg.FilterTitle,
+		arg.FilterGenres,
+		arg.SortCol,
+		arg.SortDir,
+	)
 	if err != nil {
 		return nil, err
 	}
