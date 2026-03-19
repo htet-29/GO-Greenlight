@@ -9,7 +9,7 @@ WHERE id = $1;
 
 -- name: ListMovies :many
 SELECT * FROM movies
-WHERE (LOWER(title) = LOWER(@filter_title) OR @filter_title = '')
+WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', @filter_title) OR @filter_title = '')
 AND (genres @> @filter_genres OR @filter_genres = '{}'::text[])
 ORDER BY id;
 
