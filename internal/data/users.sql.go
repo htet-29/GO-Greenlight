@@ -7,14 +7,12 @@ package data
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (name, email, password_hash, activated)
 VALUES ($1, $2, $3, $4)
-RETURNING id, created_at, version
+RETURNING id, created_at, name, email, password_hash, activated, version
 `
 
 type CreateUserParams struct {
@@ -24,21 +22,23 @@ type CreateUserParams struct {
 	Activated    bool
 }
 
-type CreateUserRow struct {
-	ID        int64
-	CreatedAt pgtype.Timestamptz
-	Version   int32
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, createUser,
 		arg.Name,
 		arg.Email,
 		arg.PasswordHash,
 		arg.Activated,
 	)
-	var i CreateUserRow
-	err := row.Scan(&i.ID, &i.CreatedAt, &i.Version)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Activated,
+		&i.Version,
+	)
 	return i, err
 }
 

@@ -140,6 +140,17 @@ func toDomainMovie(dbMovie data.Movie) domain.Movie {
 	}
 }
 
+func toDomainUser(dbUser data.User) domain.User {
+	return domain.User{
+		ID:        dbUser.ID,
+		Name:      dbUser.Name,
+		Email:     dbUser.Email,
+		CreatedAt: dbUser.CreatedAt.Time,
+		Activated: dbUser.Activated,
+		Version:   int(dbUser.Version),
+	}
+}
+
 // readString is a helper that returns a string value from the query string, or the provided
 // default value if no matching key could be found
 func (app *application) readString(qs url.Values, key string, defaultValue string) string {
