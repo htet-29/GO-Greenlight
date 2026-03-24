@@ -17,3 +17,13 @@ type Movie struct {
 	Genres    []string
 	Version   int32
 }
+
+type User struct {
+	ID           int64
+	CreatedAt    pgtype.Timestamptz
+	Name         string
+	Email        string
+	PasswordHash []byte
+	Activated    bool
+	Version      int32
+}
