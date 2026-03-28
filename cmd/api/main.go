@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/htet-29/greenlight/internal/data"
+	"github.com/htet-29/greenlight/internal/mailer"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -31,6 +32,13 @@ type config struct {
 		burst   int
 		enabled bool
 	}
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
 }
 
 // application struct to hold the dependencies for our HTTP handlers, helpers,
@@ -39,6 +47,7 @@ type application struct {
 	config config
 	logger *slog.Logger
 	db     *data.Queries
+	mailer *mailer.Mailer
 }
 
 func main() {
@@ -57,6 +66,12 @@ func main() {
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "8fb1dfd82cfaf8", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "7fe470f4c9a2ab", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@greenlight.htethlaingwin.net>", "SMTP sender")
+
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -74,10 +89,17 @@ func main() {
 
 	logger.Info("database connection pool established")
 
+	mailer, err := mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
 	app := &application{
 		config: cfg,
 		logger: logger,
 		db:     db,
+		mailer: mailer,
 	}
 
 	mux := http.NewServeMux()
