@@ -200,7 +200,7 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 
 func (app *application) background(fn func()) {
 	// Launch a background goroutine
-	go func() {
+	app.wg.Go(func() {
 		// Recover any panic.
 		defer func() {
 			pv := recover()
@@ -210,5 +210,5 @@ func (app *application) background(fn func()) {
 		}()
 
 		fn()
-	}()
+	})
 }

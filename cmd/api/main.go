@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -48,6 +49,7 @@ type application struct {
 	logger *slog.Logger
 	db     *data.Queries
 	mailer *mailer.Mailer
+	wg     sync.WaitGroup
 }
 
 func main() {
