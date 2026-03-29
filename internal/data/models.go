@@ -18,6 +18,13 @@ type Movie struct {
 	Version   int32
 }
 
+type Token struct {
+	Hash   []byte
+	UserID int64
+	Expiry pgtype.Timestamptz
+	Scope  string
+}
+
 type User struct {
 	ID           int64
 	CreatedAt    pgtype.Timestamptz

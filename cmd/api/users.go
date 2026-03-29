@@ -9,6 +9,7 @@ import (
 	"github.com/htet-29/greenlight/internal/data"
 	"github.com/htet-29/greenlight/internal/domain"
 	"github.com/htet-29/greenlight/internal/validator"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -63,8 +64,28 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	token := domain.GenerateToken(user.ID, 3*24*time.Hour, domain.ScopeActivation)
+	tokenCtx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	err = app.db.CreateToken(tokenCtx, data.CreateTokenParams{
+		Hash:   token.Hash,
+		UserID: token.UserID,
+		Expiry: pgtype.Timestamptz{Time: token.Expiry, Valid: true},
+		Scope:  token.Scope,
+	})
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 	app.background(func() {
-		err := app.mailer.Send(user.Email, "user_welcome.tmpl", user)
+		data := map[string]any{
+			"activationToken": token.Plaintext,
+			"userID":          user.ID,
+		}
+
+		err := app.mailer.Send(user.Email, "user_welcome.tmpl", data)
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
