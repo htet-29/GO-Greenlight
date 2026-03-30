@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/htet-29/greenlight/internal/validator"
@@ -39,6 +40,8 @@ func (p *password) Set(plaintextPassword string) error {
 
 func (p *password) Matches(plaintextPassword string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(p.Hash, []byte(plaintextPassword))
+	fmt.Println("hash: ", string(p.Hash), "plain: ", plaintextPassword)
+
 	if err != nil {
 		switch {
 		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
