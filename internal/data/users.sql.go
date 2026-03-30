@@ -7,6 +7,8 @@ package data
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -58,6 +60,40 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.PasswordHash,
 		&i.Activated,
 		&i.Version,
+	)
+	return i, err
+}
+
+const getUserByToken = `-- name: GetUserByToken :one
+SELECT users.id, users.created_at, users.name, users.email, users.password_hash, users.activated, users.version FROM users
+INNER JOIN tokens
+ON users.id = tokens.user_id
+WHERE tokens.hash = $1
+AND tokens.scope = $2
+AND tokens.expiry > $3
+`
+
+type GetUserByTokenParams struct {
+	Hash   []byte
+	Scope  string
+	Expiry pgtype.Timestamptz
+}
+
+type GetUserByTokenRow struct {
+	User User
+}
+
+func (q *Queries) GetUserByToken(ctx context.Context, arg GetUserByTokenParams) (GetUserByTokenRow, error) {
+	row := q.db.QueryRow(ctx, getUserByToken, arg.Hash, arg.Scope, arg.Expiry)
+	var i GetUserByTokenRow
+	err := row.Scan(
+		&i.User.ID,
+		&i.User.CreatedAt,
+		&i.User.Name,
+		&i.User.Email,
+		&i.User.PasswordHash,
+		&i.User.Activated,
+		&i.User.Version,
 	)
 	return i, err
 }

@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -92,6 +95,85 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	})
 
 	err = app.writeJSON(w, http.StatusCreated, envelope{"user": toDomainUser(user)}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		TokenPlaintext string `json:"token"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	if domain.ValidateTokenPlaintext(v, input.TokenPlaintext); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	tokenHash := sha256.Sum256([]byte(input.TokenPlaintext))
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	returnedValue, err := app.db.GetUserByToken(ctx, data.GetUserByTokenParams{
+		Hash:   tokenHash[:],
+		Scope:  domain.ScopeActivation,
+		Expiry: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			v.AddError("token", "invalid or expired activation token")
+			app.failedValidationResponse(w, r, v.Errors)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+	user := returnedValue.User
+	user.Activated = true
+
+	updateCtx, updateCancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer updateCancel()
+	_, err = app.db.UpdateUser(updateCtx, data.UpdateUserParams{
+		ID:           user.ID,
+		Name:         user.Name,
+		Email:        user.Email,
+		PasswordHash: user.PasswordHash,
+		Activated:    user.Activated,
+		Version:      user.Version,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			app.editConflictResponse(w, r)
+		case errors.Is(err, context.DeadlineExceeded):
+			app.serverErrorResponse(w, r, errors.New("database operation time out"))
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	deleteCtx, deleteCancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer deleteCancel()
+
+	err = app.db.DeleteAllForUser(deleteCtx, data.DeleteAllForUserParams{
+		Scope:  domain.ScopeActivation,
+		UserID: user.ID,
+	})
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"user": toDomainUser(user)}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

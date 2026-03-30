@@ -6,3 +6,4 @@ VALUES ($1, $2, $3, $4);
 DELETE FROM tokens
 WHERE scope = $1 AND user_id = $2;
 
+
