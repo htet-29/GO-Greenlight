@@ -1,11 +1,20 @@
 package main
 
 import (
+	"context"
+	"crypto/sha256"
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/htet-29/greenlight/internal/data"
+	"github.com/htet-29/greenlight/internal/domain"
+	"github.com/htet-29/greenlight/internal/validator"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/tomasen/realip"
 	"golang.org/x/time/rate"
 )
@@ -81,6 +90,60 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 		// that the mutex isn't unlocked until all the handlers downstream of this
 		// middleware have also returned.
 		mu.Unlock()
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Authorization")
+
+		authorizationHeader := r.Header.Get("Authorization")
+
+		if authorizationHeader == "" {
+			r = app.contextSetUser(r, domain.AnonymousUser)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		headerParts := strings.Split(authorizationHeader, " ")
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		token := headerParts[1]
+
+		v := validator.New()
+
+		if domain.ValidateTokenPlaintext(v, token); !v.Valid() {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		tokenHash := sha256.Sum256([]byte(token))
+
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+
+		returnVal, err := app.db.GetUserByToken(ctx, data.GetUserByTokenParams{
+			Scope:  domain.ScopeAuthentication,
+			Hash:   tokenHash[:],
+			Expiry: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		})
+		if err != nil {
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
+				app.invalidAuthenticationTokenResponse(w, r)
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+
+		authUser := toDomainUser(returnVal.User)
+		r = app.contextSetUser(r, &authUser)
 
 		next.ServeHTTP(w, r)
 	})
