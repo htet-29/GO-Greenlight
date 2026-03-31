@@ -67,6 +67,18 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	permissionCtx, permissionCancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer permissionCancel()
+
+	err = app.db.AddPermissionsForUser(permissionCtx, data.AddPermissionsForUserParams{
+		UserID:          user.ID,
+		PermissionCodes: []string{"movies:read"},
+	})
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 	token := domain.GenerateToken(user.ID, 3*24*time.Hour, domain.ScopeActivation)
 	tokenCtx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
