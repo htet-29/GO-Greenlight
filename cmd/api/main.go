@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"expvar"
 	"flag"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -106,6 +107,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	expvar.NewString("version").Set(version)
+
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
+
+	expvar.Publish("database", expvar.Func(func() any {
+		return registerPGXStat(pool)
+	}))
+
+	expvar.Publish("timestamp", expvar.Func(func() any {
+		return time.Now().Unix()
+	}))
+
 	app := &application{
 		config: cfg,
 		logger: logger,
@@ -113,13 +128,27 @@ func main() {
 		mailer: mailer,
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/healthcheck", app.healthcheckHandler)
-
 	err = app.server()
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
+	}
+}
+
+func registerPGXStat(pool *pgxpool.Pool) any {
+	s := pool.Stat()
+
+	return map[string]any{
+		"MaxConns":             s.MaxConns(),
+		"TotalConns":           s.TotalConns(),
+		"IdleConns":            s.IdleConns(),
+		"InUseConns":           s.AcquiredConns(),
+		"PendingConns":         s.ConstructingConns(),
+		"WaitingCount":         s.AcquireCount(),
+		"WaitDuration":         s.EmptyAcquireWaitTime(),
+		"AcquireDuration":      s.AcquireDuration(),
+		"EmptyWaitCount":       s.EmptyAcquireCount(),
+		"CanceledAcquireCount": s.CanceledAcquireCount(),
 	}
 }
 
