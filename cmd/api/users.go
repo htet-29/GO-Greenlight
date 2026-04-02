@@ -130,6 +130,7 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	tokenHash := sha256.Sum256([]byte(input.TokenPlaintext))
+
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
@@ -148,18 +149,18 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		}
 		return
 	}
-	user := returnedValue.User
-	user.Activated = true
+	domainUser := toDomainUser(returnedValue.User)
+	domainUser.Activated = true
 
 	updateCtx, updateCancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer updateCancel()
 	_, err = app.db.UpdateUser(updateCtx, data.UpdateUserParams{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		PasswordHash: user.PasswordHash,
-		Activated:    user.Activated,
-		Version:      user.Version,
+		ID:           domainUser.ID,
+		Name:         domainUser.Name,
+		Email:        domainUser.Email,
+		PasswordHash: returnedValue.User.PasswordHash,
+		Activated:    domainUser.Activated,
+		Version:      int32(domainUser.Version),
 	})
 	if err != nil {
 		switch {
@@ -178,14 +179,14 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 
 	err = app.db.DeleteAllForUser(deleteCtx, data.DeleteAllForUserParams{
 		Scope:  domain.ScopeActivation,
-		UserID: user.ID,
+		UserID: domainUser.ID,
 	})
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"user": toDomainUser(user)}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"user": domainUser}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

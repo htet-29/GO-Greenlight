@@ -49,10 +49,8 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		return
 	}
 
-	domainUser := toDomainUser(user)
+	domainUser := toDomainUserWithPassword(user)
 
-	// TODO: Fixed Logic
-	domainUser.Password.Hash = user.PasswordHash
 	match, err := domainUser.Password.Matches(input.Password)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)

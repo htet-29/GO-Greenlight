@@ -151,6 +151,12 @@ func toDomainUser(dbUser data.User) domain.User {
 	}
 }
 
+func toDomainUserWithPassword(dbUser data.User) domain.User {
+	user := toDomainUser(dbUser)
+	user.Password.SetHash(dbUser.PasswordHash)
+	return user
+}
+
 // readString is a helper that returns a string value from the query string, or the provided
 // default value if no matching key could be found
 func (app *application) readString(qs url.Values, key string, defaultValue string) string {
