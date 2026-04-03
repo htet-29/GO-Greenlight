@@ -4,6 +4,7 @@ import (
 	"context"
 	"expvar"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -15,10 +16,11 @@ import (
 
 	"github.com/htet-29/greenlight/internal/data"
 	"github.com/htet-29/greenlight/internal/mailer"
+	"github.com/htet-29/greenlight/internal/vcs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const version = "1.0.0"
+var version = vcs.Version()
 
 // config holds all the configuration settings for our application
 type config struct {
@@ -84,7 +86,14 @@ func main() {
 		return nil
 	})
 
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
